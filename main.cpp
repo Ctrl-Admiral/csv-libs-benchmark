@@ -1,46 +1,48 @@
-#include "de_serialization.hpp"
-
 #include <rapidcsv.h>
 #include <benchmark/benchmark.h>
 
 #include <iostream>
 #include <fstream>
 
-namespace csv_file
-{
-const std::string tiny = "../../csv/tiny.csv";
-const std::string medium = "../../csv/medium.csv";
-const std::string huge = "../../csv/huge.csv";
-
-const std::string cur = medium;
-}  // csv_file
-
-namespace mb = my_benchmark;
-
 static void BM_RAPID_SERIALIZATION(benchmark::State& state)
 {
-    std::ifstream file(csv_file::cur);
+    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::ifstream file(filename);
     rapidcsv::Document doc{file};
 
     for (auto _ : state)
-        mb::rapid_serialization(doc, state);
+    {
+        {
+            state.PauseTiming();
+            std::stringstream s;
+            state.ResumeTiming();
+            doc.Save(s);
+            state.PauseTiming();  // before killing stream
+        }
+        state.ResumeTiming();
+    }
 }
 
 static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
 {
-    std::ifstream file(csv_file::cur);
+    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-    std::istringstream stream(str);
+    std::istringstream ss(str);
     for (auto _ : state)
     {
-        mb::rapid_deserialization(stream, state);
+        {
+            rapidcsv::Document doc{ss};
+            benchmark::DoNotOptimize(doc);
+            state.PauseTiming();
+        }
+        state.ResumeTiming();
     }
 
 }
 
-BENCHMARK(BM_RAPID_SERIALIZATION);
-BENCHMARK(BM_RAPID_DESERIALIZATION);
-
+BENCHMARK(BM_RAPID_SERIALIZATION)->DenseRange(0,9,1);
+BENCHMARK(BM_RAPID_DESERIALIZATION)->DenseRange(0,9,1);
 
 BENCHMARK_MAIN();

@@ -5,7 +5,7 @@ project(csv-libs-benchmark LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(csv-libs-benchmark main.cpp de_serialization.cpp)
+add_executable(csv-libs-benchmark main.cpp)
 
 # google-benchmark
 find_package(benchmark REQUIRED)
