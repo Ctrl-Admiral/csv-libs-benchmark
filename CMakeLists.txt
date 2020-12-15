@@ -12,7 +12,12 @@ find_package(benchmark REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE benchmark::benchmark)
 
 # rapidcsv
-add_library(rapidcsv rapidcsv/rapidcsv.h)
-set(rapidcsv_INCLUDE_DIR rapidcsv)
-target_include_directories(${PROJECT_NAME} PRIVATE ${rapidcsv_INCLUDE_DIR})
+add_library(rapidcsv libs/rapidcsv.h)
 set_target_properties(rapidcsv PROPERTIES LINKER_LANGUAGE CXX)
+
+# csv-parser
+add_library(csv-parser libs/parser.hpp)
+set_target_properties(csv-parser PROPERTIES LINKER_LANGUAGE CXX)
+
+set(libs_INCLUDE_DIR libs)
+target_include_directories(${PROJECT_NAME} PRIVATE ${libs_INCLUDE_DIR})
