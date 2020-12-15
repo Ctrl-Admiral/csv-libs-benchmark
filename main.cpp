@@ -11,7 +11,10 @@ static void BM_RAPID_SERIALIZATION(benchmark::State& state)
 {
     std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
-    rapidcsv::Document doc{file};
+    std::string str((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+    std::istringstream ss(str);
+    rapidcsv::Document doc{ss};
 
     for (auto _ : state)
     {
@@ -48,7 +51,10 @@ static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
 {
     std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
-    acsv::CsvParser doc(file);
+    std::string str((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+    std::istringstream ss(str);
+    acsv::CsvParser parser(ss);
 
     for (auto _ : state)
     {
@@ -56,14 +62,15 @@ static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
             state.PauseTiming();
             std::stringstream parsed_csv;
             state.ResumeTiming();
-            for (auto& row : doc)
+            for (const auto& row : parser)
             {
-              for (auto& field : row)
+              for (const auto& field : row)
               {
                 parsed_csv << field << ',';
               }
               parsed_csv << '\n';   // to make output like output of other libs
             }
+            benchmark::DoNotOptimize(parsed_csv.str());
             state.PauseTiming();  // before killing stream
         }
         state.ResumeTiming();
@@ -80,8 +87,14 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
     for (auto _ : state)
     {
         {
-            acsv::CsvParser doc{ss};
-            benchmark::DoNotOptimize(doc);
+            acsv::CsvParser parser(ss);
+            for (const auto& row : parser)
+            {
+              for (const auto& field : row)
+              {}
+            }
+
+            benchmark::DoNotOptimize(parser);
             state.PauseTiming();
         }
         state.ResumeTiming();
