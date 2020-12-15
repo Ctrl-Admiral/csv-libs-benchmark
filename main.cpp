@@ -53,15 +53,15 @@ static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-    std::istringstream ss(str);
-    acsv::CsvParser parser(ss);
-
     for (auto _ : state)
     {
         {
             state.PauseTiming();
-            std::stringstream parsed_csv;
+            std::istringstream ss(std::move(str));
+            acsv::CsvParser parser(ss);
+            std::ostringstream parsed_csv;
             state.ResumeTiming();
+
             for (const auto& row : parser)
             {
               for (const auto& field : row)
@@ -70,8 +70,7 @@ static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
               }
               parsed_csv << '\n';   // to make output like output of other libs
             }
-            benchmark::DoNotOptimize(parsed_csv.str());
-            state.PauseTiming();  // before killing stream
+            state.PauseTiming();  // before killing streams
         }
         state.ResumeTiming();
     }
@@ -79,23 +78,29 @@ static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
 
 static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
 {
+
     std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-    std::istringstream ss(str);
     for (auto _ : state)
     {
         {
+            state.PauseTiming();
+            std::istringstream ss(std::move(str));
             acsv::CsvParser parser(ss);
+            std::ostringstream parsed_csv;
+            state.ResumeTiming();
+
             for (const auto& row : parser)
             {
-              for (const auto& field : row)
-              {}
+                benchmark::DoNotOptimize(row);
+                for (const auto& field : row)
+                {
+                    benchmark::DoNotOptimize(field);
+                }
             }
-
-            benchmark::DoNotOptimize(parser);
-            state.PauseTiming();
+            state.PauseTiming();  // before killing streams
         }
         state.ResumeTiming();
     }
