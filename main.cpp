@@ -6,13 +6,12 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <regex>
 
 namespace acsv = aria::csv;
 
 static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
 {
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
@@ -30,7 +29,7 @@ static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
 
 static void BM_RAPID_SERIALIZATION(benchmark::State& state)
 {
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
@@ -53,7 +52,7 @@ static void BM_RAPID_SERIALIZATION(benchmark::State& state)
 static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
 {
 
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
@@ -80,49 +79,36 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
     }
 }
 
-static void BM_CSV_PARSER_SERIALIZATION(benchmark::State& state)
+
+static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
 {
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
     std::ifstream file(filename);
-    std::string str((std::istreambuf_iterator<char>(file)),
+    std::string csv((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
+
     for (auto _ : state)
     {
         {
             state.PauseTiming();
-            std::istringstream ss(std::move(str));
-            acsv::CsvParser parser(ss);
-            std::ostringstream parsed_csv;
+            csv2::Reader<csv2::delimiter<','>,
+                     csv2::quote_character<'"'>,
+                     csv2::first_row_is_header<false>,
+                     csv2::trim_policy::trim_whitespace> reader;
             state.ResumeTiming();
-
-            for (const auto& row : parser)
+            reader.parse(csv);
+            for (const auto& row : reader)
             {
-              for (const auto& field : row)
-              {
-                parsed_csv << field << ',';
-              }
-              parsed_csv << '\n';   // to make output like output of other libs
+                benchmark::DoNotOptimize(row);
+                for (const auto& cell : row)
+                {
+                    state.PauseTiming();
+                    std::string cellstr;
+                    cell.read_value(cellstr);
+                    state.ResumeTiming();
+                    benchmark::DoNotOptimize(cell);
+                }
             }
-            state.PauseTiming();  // before killing streams
-        }
-        state.ResumeTiming();
-    }
-}
-
-static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
-{
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
-
-    for (auto _ : state)
-    {
-        {
-            //state.PauseTiming();  // если вставить, увеличивает время теста на несколько порядков
-            std::ifstream file(filename);
-            std::string csv((std::istreambuf_iterator<char>(file)),
-                             std::istreambuf_iterator<char>());
-            csv2::Reader<csv2::first_row_is_header<false>> doc;
-            //state.ResumeTiming();
-            doc.parse(csv);
             state.PauseTiming();
         }
         state.ResumeTiming();
@@ -134,14 +120,25 @@ using csv_vec = std::vector<row_vec>;
 
 csv_vec parse_csv_into_vector(const std::string& filename)
 {
-    const std::regex comma(",");
-    std::ifstream file(filename);
     csv_vec answer;
 
-    std::string line{};
-    while (file && getline(file, line)) {
-        std::vector<std::string> row{ std::sregex_token_iterator(line.begin(),line.end(),comma,-1), std::sregex_token_iterator() };
-        answer.push_back(row);
+    csv2::Reader<csv2::delimiter<','>,
+             csv2::quote_character<'"'>,
+             csv2::first_row_is_header<false>,
+             csv2::trim_policy::trim_whitespace> reader;
+    reader.mmap(filename);
+
+    for (const auto& row : reader)
+    {
+        row_vec cur_row;
+        for (const auto& cell : row)
+        {
+            std::string cur_cell;
+            cell.read_value(cur_cell);
+            cur_row.emplace_back(cur_cell);
+        }
+        if (!cur_row.empty())
+            answer.emplace_back(cur_row);
     }
     return answer;
 }
@@ -149,9 +146,8 @@ csv_vec parse_csv_into_vector(const std::string& filename)
 
 static void BM_CSV2_SERIALIZATION(benchmark::State& state)
 {
-    std::string filename = "../../csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
 
-    // how can i not to benchmark that...
     csv_vec csv = parse_csv_into_vector(filename);
 
     for (auto _ : state)
@@ -173,9 +169,9 @@ static void BM_CSV2_SERIALIZATION(benchmark::State& state)
 
 BENCHMARK(BM_RAPID_SERIALIZATION)->DenseRange(0,9,1);
 BENCHMARK(BM_RAPID_DESERIALIZATION)->DenseRange(0,9,1);
-BENCHMARK(BM_CSV_PARSER_SERIALIZATION)->DenseRange(0,9,1);
 BENCHMARK(BM_CSV_PARSER_DESERIALIZATION)->DenseRange(0,9,1);
-BENCHMARK(BM_CSV2_DESERIALIZATION)->DenseRange(0,9,1);
 BENCHMARK(BM_CSV2_SERIALIZATION)->DenseRange(0,9,1);
+BENCHMARK(BM_CSV2_DESERIALIZATION)->DenseRange(0,9,1);
 
 BENCHMARK_MAIN();
+
