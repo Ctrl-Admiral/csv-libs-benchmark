@@ -19,5 +19,9 @@ set_target_properties(rapidcsv PROPERTIES LINKER_LANGUAGE CXX)
 add_library(csv-parser libs/parser.hpp)
 set_target_properties(csv-parser PROPERTIES LINKER_LANGUAGE CXX)
 
+# csv2
+add_library(csv2 libs/csv2.hpp)
+set_target_properties(csv2 PROPERTIES LINKER_LANGUAGE CXX)
+
 set(libs_INCLUDE_DIR libs)
 target_include_directories(${PROJECT_NAME} PRIVATE ${libs_INCLUDE_DIR})
