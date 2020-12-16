@@ -9,21 +9,40 @@
 
 namespace acsv = aria::csv;
 
-static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
+void set_label(benchmark::State& state)
 {
-    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
-    std::ifstream file(filename);
-    std::string str((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
-    std::istringstream ss(str);
-    for (auto _ : state)
+    switch(state.range(0))
     {
-        {
-            rapidcsv::Document doc(ss, rapidcsv::LabelParams(-1,-1));
-            benchmark::DoNotOptimize(doc);
-            state.PauseTiming();
-        }
-        state.ResumeTiming();
+    case 0:
+        state.SetLabel(std::to_string(0.032));
+        break;
+    case 1:
+        state.SetLabel(std::to_string(0.06));
+        break;
+    case 2:
+        state.SetLabel(std::to_string(0.111));
+        break;
+    case 3:
+        state.SetLabel(std::to_string(0.225));
+        break;
+    case 4:
+        state.SetLabel(std::to_string(0.460));
+        break;
+    case 5:
+        state.SetLabel(std::to_string(0.922));
+        break;
+    case 6:
+        state.SetLabel(std::to_string(1.8));
+        break;
+    case 7:
+        state.SetLabel(std::to_string(3.7));
+        break;
+    case 8:
+        state.SetLabel(std::to_string(7.4));
+        break;
+    case 9:
+        state.SetLabel(std::to_string(14.8));
+        break;
     }
 }
 
@@ -38,12 +57,36 @@ static void BM_RAPID_SERIALIZATION(benchmark::State& state)
 
     for (auto _ : state)
     {
+        state.PauseTiming();
+        set_label(state);
+        state.ResumeTiming();
         {
             state.PauseTiming();
             std::stringstream s;
             state.ResumeTiming();
             doc.Save(s);
             state.PauseTiming();  // before killing stream
+        }
+        state.ResumeTiming();
+    }
+}
+
+static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
+{
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::ifstream file(filename);
+    std::string str((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+    std::istringstream ss(str);
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        set_label(state);
+        state.ResumeTiming();
+        {
+            rapidcsv::Document doc(ss, rapidcsv::LabelParams(-1,-1));
+            benchmark::DoNotOptimize(doc);
+            state.PauseTiming();
         }
         state.ResumeTiming();
     }
@@ -58,6 +101,9 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
                      std::istreambuf_iterator<char>());
     for (auto _ : state)
     {
+        state.PauseTiming();
+        set_label(state);
+        state.ResumeTiming();
         {
             state.PauseTiming();
             std::istringstream ss(std::move(str));
@@ -79,41 +125,6 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
     }
 }
 
-
-static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
-{
-    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
-    std::ifstream file(filename);
-    std::string csv((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
-
-    for (auto _ : state)
-    {
-        {
-            state.PauseTiming();
-            csv2::Reader<csv2::delimiter<','>,
-                     csv2::quote_character<'"'>,
-                     csv2::first_row_is_header<false>,
-                     csv2::trim_policy::trim_whitespace> reader;
-            state.ResumeTiming();
-            reader.parse(csv);
-            for (const auto& row : reader)
-            {
-                benchmark::DoNotOptimize(row);
-                for (const auto& cell : row)
-                {
-                    state.PauseTiming();
-                    std::string cellstr;
-                    cell.read_value(cellstr);
-                    state.ResumeTiming();
-                    benchmark::DoNotOptimize(cell);
-                }
-            }
-            state.PauseTiming();
-        }
-        state.ResumeTiming();
-    }
-}
 
 using row_vec = std::vector<std::string>;
 using csv_vec = std::vector<row_vec>;
@@ -152,6 +163,9 @@ static void BM_CSV2_SERIALIZATION(benchmark::State& state)
 
     for (auto _ : state)
     {
+        state.PauseTiming();
+        set_label(state);
+        state.ResumeTiming();
         {
             state.PauseTiming();
             std::ofstream out_fs;
@@ -166,6 +180,38 @@ static void BM_CSV2_SERIALIZATION(benchmark::State& state)
     }
 }
 
+static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
+{
+    std::string filename = "csv/file" + std::to_string(state.range(0)) + ".csv";
+    std::ifstream file(filename);
+    std::string csv((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+
+    for (auto _ : state)
+    {
+        state.PauseTiming();
+        set_label(state);
+        state.ResumeTiming();
+        {
+            csv2::Reader<csv2::delimiter<','>,
+                     csv2::quote_character<'"'>,
+                     csv2::first_row_is_header<false>,
+                     csv2::trim_policy::trim_whitespace> reader;
+            reader.parse(csv);
+            for (const auto& row : reader)
+            {
+                for (const auto& cell : row)
+                {
+                    std::string cellstr;
+                    cell.read_value(cellstr);
+                }
+            }
+            state.PauseTiming();
+        }
+        state.ResumeTiming();
+    }
+}
+
 
 BENCHMARK(BM_RAPID_SERIALIZATION)->DenseRange(0,9,1);
 BENCHMARK(BM_RAPID_DESERIALIZATION)->DenseRange(0,9,1);
@@ -174,4 +220,3 @@ BENCHMARK(BM_CSV2_SERIALIZATION)->DenseRange(0,9,1);
 BENCHMARK(BM_CSV2_DESERIALIZATION)->DenseRange(0,9,1);
 
 BENCHMARK_MAIN();
-
