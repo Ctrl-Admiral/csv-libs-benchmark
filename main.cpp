@@ -1,49 +1,19 @@
+#include <benchmark/benchmark.h>
+#include <csv2.hpp>
 #include <rapidcsv.h>
 #include <parser.hpp>
-#include <csv2.hpp>
-#include <benchmark/benchmark.h>
 
-#include <iostream>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
-namespace acsv = aria::csv;
+namespace fs = std::filesystem;
 
-void set_label(benchmark::State& state)
+void set_label(benchmark::State& state, const std::string& filename)
 {
-    switch(state.range(0))
-    {
-    case 0:
-        state.SetLabel(std::to_string(0.032));
-        break;
-    case 1:
-        state.SetLabel(std::to_string(0.06));
-        break;
-    case 2:
-        state.SetLabel(std::to_string(0.111));
-        break;
-    case 3:
-        state.SetLabel(std::to_string(0.225));
-        break;
-    case 4:
-        state.SetLabel(std::to_string(0.460));
-        break;
-    case 5:
-        state.SetLabel(std::to_string(0.922));
-        break;
-    case 6:
-        state.SetLabel(std::to_string(1.8));
-        break;
-    case 7:
-        state.SetLabel(std::to_string(3.7));
-        break;
-    case 8:
-        state.SetLabel(std::to_string(7.4));
-        break;
-    case 9:
-        state.SetLabel(std::to_string(14.8));
-        break;
-    }
+    std::uintmax_t filesize = fs::file_size(filename);
+    state.SetLabel(std::to_string(filesize));
 }
 
 static void BM_RAPID_SERIALIZATION(benchmark::State& state)
@@ -52,20 +22,18 @@ static void BM_RAPID_SERIALIZATION(benchmark::State& state)
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-    std::istringstream ss(str);
+    std::istringstream ss(std::move(str));
     rapidcsv::Document doc(ss, rapidcsv::LabelParams(-1,-1));
 
+    set_label(state, filename);
     for (auto _ : state)
     {
-        state.PauseTiming();
-        set_label(state);
-        state.ResumeTiming();
         {
             state.PauseTiming();
             std::stringstream s;
             state.ResumeTiming();
             doc.Save(s);
-            state.PauseTiming();  // before killing stream
+            state.PauseTiming();  // before killing stream and doc
         }
         state.ResumeTiming();
     }
@@ -77,20 +45,21 @@ static void BM_RAPID_DESERIALIZATION(benchmark::State& state)
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-    std::istringstream ss(str);
+    std::istringstream ss(std::move(str));
+
+    set_label(state, filename);
     for (auto _ : state)
     {
-        state.PauseTiming();
-        set_label(state);
-        state.ResumeTiming();
         {
             rapidcsv::Document doc(ss, rapidcsv::LabelParams(-1,-1));
             benchmark::DoNotOptimize(doc);
-            state.PauseTiming();
+            state.PauseTiming();  // before killing doc
         }
         state.ResumeTiming();
     }
 }
+
+namespace acsv = aria::csv;
 
 static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
 {
@@ -99,16 +68,14 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
     std::ifstream file(filename);
     std::string str((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
+
+    set_label(state, filename);
     for (auto _ : state)
     {
-        state.PauseTiming();
-        set_label(state);
-        state.ResumeTiming();
         {
             state.PauseTiming();
-            std::istringstream ss(std::move(str));
+            std::istringstream ss(str);
             acsv::CsvParser parser(ss);
-            std::ostringstream parsed_csv;
             state.ResumeTiming();
 
             for (const auto& row : parser)
@@ -119,7 +86,7 @@ static void BM_CSV_PARSER_DESERIALIZATION(benchmark::State& state)
                     benchmark::DoNotOptimize(field);
                 }
             }
-            state.PauseTiming();  // before killing streams
+            state.PauseTiming();  // before killing stream and parser
         }
         state.ResumeTiming();
     }
@@ -161,11 +128,9 @@ static void BM_CSV2_SERIALIZATION(benchmark::State& state)
 
     csv_vec csv = parse_csv_into_vector(filename);
 
+    set_label(state, filename);
     for (auto _ : state)
     {
-        state.PauseTiming();
-        set_label(state);
-        state.ResumeTiming();
         {
             state.PauseTiming();
             std::ofstream out_fs;
@@ -174,7 +139,7 @@ static void BM_CSV2_SERIALIZATION(benchmark::State& state)
 
             writer.write_rows(csv);
 
-            state.PauseTiming();  // before killing stream
+            state.PauseTiming();  // before killing stream and writer
         }
         state.ResumeTiming();
     }
@@ -187,11 +152,9 @@ static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
     std::string csv((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
+    set_label(state, filename);
     for (auto _ : state)
     {
-        state.PauseTiming();
-        set_label(state);
-        state.ResumeTiming();
         {
             csv2::Reader<csv2::delimiter<','>,
                      csv2::quote_character<'"'>,
@@ -206,7 +169,7 @@ static void BM_CSV2_DESERIALIZATION(benchmark::State& state)
                     cell.read_value(cellstr);
                 }
             }
-            state.PauseTiming();
+            state.PauseTiming(); // before killing reader
         }
         state.ResumeTiming();
     }
