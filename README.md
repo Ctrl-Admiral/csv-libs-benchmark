@@ -26,8 +26,8 @@ note: csv-parser is just parser and it's serialization is just deserialization +
 |           7734554 |      1.61053e+07 |      3.80005e+07 |
 |          15469066 |      3.21229e+07 |      7.48271e+07 |
 
-| | |
-|-- |-- |
+| Serialization speed comparison      | Serialization speed comparison, logx      |
+|------------------------------------ |------------------------------------------ |
 ![graph of serialization](serial.png) | ![graph of serialization](serial_logx.png)
 
 ### Deserialization
@@ -46,14 +46,14 @@ note: csv-parser is just parser and it's serialization is just deserialization +
 |      7734554      | 2.86447e+07  | 4.38443e+07 | 5.82711e+07 |
 |     15469066      | 5.74301e+07  | 8.71222e+07 | 1.3759e+08  |
 
-| | |
-|-- |-- |
+| Deserialization speed comparison    | Deserialization speed comparison, logx    |
+|------------------------------------ |------------------------------------------ |
 ![graph of serialization](deserial.png) | ![graph of serialization](deserial_logx.png)
 
 ### Serialization and deserialization on the one graph: 
 
 deserialization is always slower than serialization.
 
-| | |
-|-- |-- 
+| Both de/serialization speed comparison             | Both de/serialization speed comparison, logx      |
+|--------------------------------------------------- |-------------------------------------------------- |
 ![graph of both de- and serialization](sederial.png) | ![graph of serialization](sederial_logx.png)
